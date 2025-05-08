@@ -177,6 +177,9 @@ submit_clicked = st.button("Invia Risposte")
 if submit_clicked:
     st.session_state["submitted"] = True
     st.experimental_rerun()
+    
+    if st.session_state["submitted"]:
+    st.success("Risposte inviate.")
 
     if st.session_state["submitted"]:
         df_r = pd.DataFrame(risposte)
