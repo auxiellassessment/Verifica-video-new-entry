@@ -87,13 +87,10 @@ if st.session_state["azienda_scelta"] is None:
 azienda_scelta = st.session_state["azienda_scelta"]
 df_filtrato = df[df["Azienda"] == azienda_scelta]
 
-# Selezione domande per argomento
+# Importazione domande
 if "domande_selezionate" not in st.session_state:
-    st.session_state["domande_selezionate"] = (
-        df_filtrato.groupby("principio", group_keys=False)
-                   .apply(lambda x: x.sample(n=min(2, len(x))))
-                   .reset_index(drop=True)
-    )
+    st.session_state["domande_selezionate"] = df_filtrato.reset_index(drop=True)
+
 domande = st.session_state["domande_selezionate"]
 
 # Step 3: input utente
