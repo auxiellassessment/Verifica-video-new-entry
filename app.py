@@ -54,7 +54,7 @@ if "azienda_scelta" not in st.session_state:
     st.session_state["azienda_scelta"] = None
 
 # Caricamento Excel
-file_path = "questionario conoscenze infusion.xlsx"
+file_path = "questionario conoscenze New Entry.xlsx"
 try:
     df = pd.read_excel(file_path)
     st.success("Domande pronte!")
