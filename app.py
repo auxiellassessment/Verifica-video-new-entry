@@ -133,7 +133,7 @@ if st.session_state["proseguito"]:
         st.markdown(f"**{row['Domanda']}**")
         if pd.isna(row["opzione 1"]):
             ans = st.text_input(
-                f"Risposta libera ({row['principio']})",
+                f"Risposta libera:",
                 key=f"open_{idx}",
                 disabled=st.session_state["submitted"]
             )
@@ -142,7 +142,6 @@ if st.session_state["proseguito"]:
                 "Azienda": azienda_scelta,
                 "Utente": utente,
                 "Domanda": row["Domanda"],
-                "Argomento": row["principio"],
                 "Risposta": ans,
                 "Corretta": None,
                 "Esatta": None
