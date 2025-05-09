@@ -75,7 +75,7 @@ if not option_cols:
     st.error("Nessuna colonna di opzione trovata.")
     st.stop()
 
-# Usa direttamente tutto il dataframe senza filtrare per azienda
+# Usa direttamente tutto il dataframe
 if "domande_selezionate" not in st.session_state:
     st.session_state["domande_selezionate"] = df.reset_index(drop=True)
 
@@ -83,27 +83,20 @@ domande = st.session_state["domande_selezionate"]
 
 # Input utente
 utente = st.text_input("Inserisci il tuo nome")
-email_compilatore = st.text_input("Inserisci la tua email aziendale")
-email_mentor = st.text_input("Inserisci l'indirizzo e-mail del tuo main mentor")
+email_utente = st.text_input("Inserisci la tua email aziendale")
 
 # Validazione email
 errore_email = None
-if email_compilatore and not (email_compilatore.endswith("@auxiell.com") or 
-                              email_compilatore.endswith("@euxilia.com") or 
-                              email_compilatore.endswith("@xva-services.com")):
+domini_validi = ["@auxiell.com", "@euxilia.com", "@xva-services.com"]
+
+if email_utente and not any(email_utente.endswith(dominio) for dominio in domini_validi):
     errore_email = "La tua email deve terminare con @auxiell.com, @euxilia.com o @xva-services.com"
-elif email_mentor and not (email_mentor.endswith("@auxiell.com") or 
-                           email_mentor.endswith("@euxilia.com") or 
-                           email_mentor.endswith("@xva-services.com")):
-    errore_email = "L'email del mentor deve terminare con @auxiell.com, @euxilia.com o @xva-services.com"
-elif email_compilatore and email_mentor and email_compilatore == email_mentor:
-    errore_email = "La tua email e quella del mentor devono essere diverse"
 
 if errore_email:
     st.warning(errore_email)
 
 # Pulsante Prosegui
-if utente and email_compilatore and email_mentor and not errore_email and not st.session_state["proseguito"]:
+if utente and email_utente and not errore_email and not st.session_state["proseguito"]:
     st.markdown("<div style='text-align: center; margin-top:20px;'><br>", unsafe_allow_html=True)
     if st.button("Prosegui"):
         st.session_state["proseguito"] = True
@@ -174,15 +167,9 @@ if st.session_state["proseguito"]:
         
         # Creazione file Excel con due tabelle
         data_test = datetime.now().strftime("%d/%m/%Y")
-        info = pd.DataFrame([{
-            "Nome": utente,
-            "Data": data_test,
-            "Punteggio": f"{perc}%",
-            "Email": email_compilatore
-        }])
         
         # Estrai dominio email per determinare l'azienda
-        domain = email_compilatore.split('@')[1]
+        domain = email_utente.split('@')[1]
         if domain == "auxiell.com":
             azienda = "auxiell"
         elif domain == "euxilia.com":
@@ -191,14 +178,20 @@ if st.session_state["proseguito"]:
             azienda = "xva"
         else:
             azienda = "altra"
-            
-        info["Azienda"] = azienda
+        
+        info = pd.DataFrame([{
+            "Nome": utente,
+            "Data": data_test,
+            "Punteggio": f"{perc}%",
+            "Email": email_utente,
+            "Azienda": azienda
+        }])
         
         buf = BytesIO()
         with pd.ExcelWriter(buf, engine="openpyxl") as writer:
             info.to_excel(writer, index=False, sheet_name="Risposte", startrow=0)
             pd.DataFrame([], columns=[""]).to_excel(writer, index=False, sheet_name="Risposte", startrow=2)
-            df_r["Email"] = email_compilatore
+            df_r["Email"] = email_utente
             df_r["Punteggio"] = f"{perc}%"
             df_r["Azienda"] = azienda
             df_r.to_excel(writer, index=False, sheet_name="Risposte", startrow=3)
@@ -207,9 +200,18 @@ if st.session_state["proseguito"]:
         # Email
         msg = MIMEMultipart()
         msg["From"] = "infusionauxiell@gmail.com"
-        msg["To"] = email_mentor
+        msg["To"] = email_utente  # Invia all'email dell'utente
         msg["Subject"] = f"Risultati Quiz - {utente}"
-        body = f"Risultati di {utente} ({email_compilatore}) in allegato.\nPunteggio: {perc}%"
+        body = f"""Ciao {utente},
+
+Grazie per aver completato il quiz di verifica conoscenze Video New Entry.
+I tuoi risultati sono allegati a questa email.
+
+Punteggio finale: {n_cor} su {n_tot} ({perc}%)
+
+Cordiali saluti,
+Team auxiell"""
+
         msg.attach(MIMEText(body, "plain"))
         attachment = MIMEApplication(buf.getvalue(), Name=f"risultati_{utente}.xlsx")
         attachment["Content-Disposition"] = f'attachment; filename="risultati_{utente}.xlsx"'
@@ -221,13 +223,13 @@ if st.session_state["proseguito"]:
                 server.login("infusionauxiell@gmail.com", "ubrwqtcnbyjiqach")
                 server.send_message(msg)
             st.session_state["email_sent"] = True
-            st.success(f"Email inviata a {email_mentor}")
+            st.success(f"Email inviata a {email_utente}")
             
             # Aggiungiamo un messaggio di chiusura e ringraziamento
             st.balloons()  # Effetto celebrativo
-            st.markdown("""
+            st.markdown(f"""
             ### Quiz completato!
-            Grazie per aver completato il quiz. I risultati sono stati inviati al tuo mentor.
+            Grazie per aver completato il quiz. I risultati sono stati inviati alla tua email ({email_utente}).
             Puoi chiudere questa finestra.
             """)
             
