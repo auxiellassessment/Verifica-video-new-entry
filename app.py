@@ -169,7 +169,7 @@ if st.session_state["proseguito"]:
             })
 
    # Pulsante invio con blocco immediato
- if not st.session_state["submitted"]:
+   if not st.session_state["submitted"]:
         if st.button("Invia Risposte"):
             st.session_state["submitted"] = True
             st.experimental_rerun()
