@@ -43,7 +43,7 @@ st.markdown("""
     <div class="spacer"></div>
 """, unsafe_allow_html=True)
 
-st.title("Verifica Video New Entry")
+st.markdown("<h1 style='text-align: center;'>Test Video New Entry</h1>", unsafe_allow_html=True)
 
 # Stato iniziale
 if "submitted" not in st.session_state:
