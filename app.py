@@ -43,15 +43,15 @@ st.markdown("""
     <div class="spacer"></div>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='text-align: center;'>Test Video New Entry</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>Verifica conoscenze Video New Entry</h1>", unsafe_allow_html=True)
 
 # Stato iniziale
 if "submitted" not in st.session_state:
     st.session_state["submitted"] = False
 if "proseguito" not in st.session_state:
     st.session_state["proseguito"] = False
-if "azienda_scelta" not in st.session_state:
-    st.session_state["azienda_scelta"] = None
+if "email_sent" not in st.session_state:
+    st.session_state["email_sent"] = False
 
 # Caricamento Excel
 file_path = "questionario conoscenze New Entry.xlsx"
@@ -63,7 +63,7 @@ except FileNotFoundError:
     st.stop()
 
 # Verifica colonne necessarie
-required_cols = ["Azienda", "principio", "Domanda", "Corretta", "opzione 1"]
+required_cols = ["principio", "Domanda", "Corretta", "opzione 1"]
 missing = [col for col in required_cols if col not in df.columns]
 if missing:
     st.error(f"Mancano le colonne obbligatorie: {', '.join(missing)}")
@@ -75,42 +75,27 @@ if not option_cols:
     st.error("Nessuna colonna di opzione trovata.")
     st.stop()
 
-# Step 1: selezione azienda
-if st.session_state["azienda_scelta"] is None:
-    aziende_disponibili = sorted(df["Azienda"].dropna().unique())
-    azienda_scelta = st.selectbox("Seleziona la tua azienda", aziende_disponibili)
-    if st.button("Conferma azienda"):
-        st.session_state["azienda_scelta"] = azienda_scelta
-    st.stop()
-
-# Step 2: filtro domande per azienda
-azienda_scelta = st.session_state["azienda_scelta"]
-df_filtrato = df[df["Azienda"] == azienda_scelta]
-
-# Importazione domande
+# Usa direttamente tutto il dataframe senza filtrare per azienda
 if "domande_selezionate" not in st.session_state:
-    st.session_state["domande_selezionate"] = df_filtrato.reset_index(drop=True)
+    st.session_state["domande_selezionate"] = df.reset_index(drop=True)
 
 domande = st.session_state["domande_selezionate"]
 
-# Step 3: input utente
+# Input utente
 utente = st.text_input("Inserisci il tuo nome")
 email_compilatore = st.text_input("Inserisci la tua email aziendale")
 email_mentor = st.text_input("Inserisci l'indirizzo e-mail del tuo main mentor")
 
 # Validazione email
 errore_email = None
-dominio_atteso = {
-    "auxiell": "@auxiell.com",
-    "euxilia": "@euxilia.com",
-    "xva": "@xva-services.com"
-}
-dominio = dominio_atteso.get(azienda_scelta.lower(), "@auxiell.com")
-
-if email_compilatore and not email_compilatore.endswith(dominio):
-    errore_email = f"La tua email deve terminare con {dominio}"
-elif email_mentor and not email_mentor.endswith(dominio):
-    errore_email = f"L'email del mentor deve terminare con {dominio}"
+if email_compilatore and not (email_compilatore.endswith("@auxiell.com") or 
+                              email_compilatore.endswith("@euxilia.com") or 
+                              email_compilatore.endswith("@xva-services.com")):
+    errore_email = "La tua email deve terminare con @auxiell.com, @euxilia.com o @xva-services.com"
+elif email_mentor and not (email_mentor.endswith("@auxiell.com") or 
+                           email_mentor.endswith("@euxilia.com") or 
+                           email_mentor.endswith("@xva-services.com")):
+    errore_email = "L'email del mentor deve terminare con @auxiell.com, @euxilia.com o @xva-services.com"
 elif email_compilatore and email_mentor and email_compilatore == email_mentor:
     errore_email = "La tua email e quella del mentor devono essere diverse"
 
@@ -135,11 +120,10 @@ if st.session_state["proseguito"]:
             ans = st.text_input(
                 f"Risposta libera:",
                 key=f"open_{idx}",
-                disabled=st.session_state["submitted"]
+                disabled=st.session_state["submitted"] or st.session_state["email_sent"]
             )
             risposte.append({
                 "Tipo": "aperta",
-                "Azienda": azienda_scelta,
                 "Utente": utente,
                 "Domanda": row["Domanda"],
                 "Risposta": ans,
@@ -153,13 +137,12 @@ if st.session_state["proseguito"]:
                 opts,
                 key=idx,
                 index=None,
-                disabled=st.session_state["submitted"]
+                disabled=st.session_state["submitted"] or st.session_state["email_sent"]
             )
             corrette = [c.strip() for c in str(row["Corretta"]).split(";")]
             is_corr = sel in corrette
             risposte.append({
                 "Tipo": "chiusa",
-                "Azienda": azienda_scelta,
                 "Utente": utente,
                 "Domanda": row["Domanda"],
                 "Argomento": row["principio"],
@@ -168,91 +151,95 @@ if st.session_state["proseguito"]:
                 "Esatta": is_corr
             })
 
-# Pulsante invio con blocco immediato
-if "submitted" not in st.session_state:
-    st.session_state["submitted"] = False
-    
-if "email_sent" not in st.session_state:
-    st.session_state["email_sent"] = False
+    # Pulsante invio con blocco immediato
+    if not (st.session_state["submitted"] or st.session_state["email_sent"]):
+        submit_clicked = st.button("Invia Risposte")
+        
+        if submit_clicked:
+            st.session_state["submitted"] = True
+            st.rerun()
+    else:
+        submit_clicked = False
 
-# Mostra il pulsante solo se non è stato ancora inviato
-if not st.session_state["submitted"] and not st.session_state["email_sent"]:
-    submit_clicked = st.button("Invia Risposte")
-    
-    if submit_clicked:
-        st.session_state["submitted"] = True
-        st.rerun()
-else:
-    submit_clicked = False
-
-# Gestisce l'invio delle risposte solo una volta
-if st.session_state["submitted"] and not st.session_state["email_sent"]:
-    st.success("Risposte inviate.")
-    
-    df_r = pd.DataFrame(risposte)
-    chiuse = df_r[df_r["Tipo"] == "chiusa"]
-    n_tot = len(chiuse)
-    n_cor = int(chiuse["Esatta"].sum()) if n_tot else 0
-    perc = int(n_cor / n_tot * 100) if n_tot else 0
-    st.success(f"Punteggio finale: {n_cor} su {n_tot} ({perc}%)")
-    
-    # Creazione file Excel con due tabelle
-    data_test = datetime.now().strftime("%d/%m/%Y")
-    info = pd.DataFrame([{
-        "Nome": utente,
-        "Data": data_test,
-        "Punteggio": f"{perc}%",
-        "Azienda": azienda_scelta
-    }])
-    buf = BytesIO()
-    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
-        info.to_excel(writer, index=False, sheet_name="Risposte", startrow=0)
-        pd.DataFrame([], columns=[""]).to_excel(writer, index=False, sheet_name="Risposte", startrow=2)
-        df_r["Email"] = email_compilatore
-        df_r["Punteggio"] = f"{perc}%"
-        df_r.to_excel(writer, index=False, sheet_name="Risposte", startrow=3)
-    buf.seek(0)
-    
-    # Email
-    msg = MIMEMultipart()
-    msg["From"] = "infusionauxiell@gmail.com"
-    msg["To"] = email_mentor
-    msg["Subject"] = f"Risultati Quiz - {utente}"
-    body = f"Risultati di {utente} ({email_compilatore}) in allegato.\nPunteggio: {perc}%"
-    msg.attach(MIMEText(body, "plain"))
-    attachment = MIMEApplication(buf.getvalue(), Name=f"risultati_{utente}.xlsx")
-    attachment["Content-Disposition"] = f'attachment; filename="risultati_{utente}.xlsx"'
-    msg.attach(attachment)
-    
-    try:
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.starttls()
-            server.login("infusionauxiell@gmail.com", "ubrwqtcnbyjiqach")
-            server.send_message(msg)
-        st.session_state["email_sent"] = True
-        st.success(f"Email inviata a {email_mentor}")
+    # Gestisce l'invio delle risposte solo una volta
+    if st.session_state["submitted"] and not st.session_state["email_sent"]:
+        st.success("Risposte inviate.")
         
-        # Aggiungiamo un messaggio di chiusura e ringraziamento
-        st.balloons()  # Effetto celebrativo
-        st.markdown("""
-        ### Quiz completato!
-        Grazie per aver completato il quiz. I risultati sono stati inviati al tuo mentor.
-        Puoi chiudere questa finestra.
-        """)
+        df_r = pd.DataFrame(risposte)
+        chiuse = df_r[df_r["Tipo"] == "chiusa"]
+        n_tot = len(chiuse)
+        n_cor = int(chiuse["Esatta"].sum()) if n_tot else 0
+        perc = int(n_cor / n_tot * 100) if n_tot else 0
+        st.success(f"Punteggio finale: {n_cor} su {n_tot} ({perc}%)")
         
-        # Disabilitiamo l'intera interfaccia utente
-        st.markdown("""
-        <style>
-        .block-container {
-            opacity: 0.7;
-            pointer-events: none;
-        }
-        div[data-testid="stVerticalBlock"] > div:not(:nth-child(-n+3)) {
-            opacity: 0.7;
-            pointer-events: none;
-        }
-        </style>
-        """, unsafe_allow_html=True)
+        # Creazione file Excel con due tabelle
+        data_test = datetime.now().strftime("%d/%m/%Y")
+        info = pd.DataFrame([{
+            "Nome": utente,
+            "Data": data_test,
+            "Punteggio": f"{perc}%",
+            "Email": email_compilatore
+        }])
         
-    except Exception as e:
-        st.error(f"Errore durante l'invio email: {e}")
+        # Estrai dominio email per determinare l'azienda
+        domain = email_compilatore.split('@')[1]
+        if domain == "auxiell.com":
+            azienda = "auxiell"
+        elif domain == "euxilia.com":
+            azienda = "euxilia"
+        elif domain == "xva-services.com":
+            azienda = "xva"
+        else:
+            azienda = "altra"
+            
+        info["Azienda"] = azienda
+        
+        buf = BytesIO()
+        with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+            info.to_excel(writer, index=False, sheet_name="Risposte", startrow=0)
+            pd.DataFrame([], columns=[""]).to_excel(writer, index=False, sheet_name="Risposte", startrow=2)
+            df_r["Email"] = email_compilatore
+            df_r["Punteggio"] = f"{perc}%"
+            df_r["Azienda"] = azienda
+            df_r.to_excel(writer, index=False, sheet_name="Risposte", startrow=3)
+        buf.seek(0)
+        
+        # Email
+        msg = MIMEMultipart()
+        msg["From"] = "infusionauxiell@gmail.com"
+        msg["To"] = email_mentor
+        msg["Subject"] = f"Risultati Quiz - {utente}"
+        body = f"Risultati di {utente} ({email_compilatore}) in allegato.\nPunteggio: {perc}%"
+        msg.attach(MIMEText(body, "plain"))
+        attachment = MIMEApplication(buf.getvalue(), Name=f"risultati_{utente}.xlsx")
+        attachment["Content-Disposition"] = f'attachment; filename="risultati_{utente}.xlsx"'
+        msg.attach(attachment)
+        
+        try:
+            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                server.starttls()
+                server.login("infusionauxiell@gmail.com", "ubrwqtcnbyjiqach")
+                server.send_message(msg)
+            st.session_state["email_sent"] = True
+            st.success(f"Email inviata a {email_mentor}")
+            
+            # Aggiungiamo un messaggio di chiusura e ringraziamento
+            st.balloons()  # Effetto celebrativo
+            st.markdown("""
+            ### Quiz completato!
+            Grazie per aver completato il quiz. I risultati sono stati inviati al tuo mentor.
+            Puoi chiudere questa finestra.
+            """)
+            
+            # Disabilitiamo l'intera interfaccia utente
+            st.markdown("""
+            <style>
+            div[data-testid="stVerticalBlock"] > div:not(:nth-child(-n+3)) {
+                opacity: 0.7;
+                pointer-events: none;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            
+        except Exception as e:
+            st.error(f"Errore durante l'invio email: {e}")
