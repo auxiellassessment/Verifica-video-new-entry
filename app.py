@@ -168,61 +168,91 @@ if st.session_state["proseguito"]:
                 "Esatta": is_corr
             })
 
-    # Pulsante invio con blocco immediato
-    if "submitted" not in st.session_state:
-        st.session_state["submitted"] = False
+# Pulsante invio con blocco immediato
+if "submitted" not in st.session_state:
+    st.session_state["submitted"] = False
+    
+if "email_sent" not in st.session_state:
+    st.session_state["email_sent"] = False
 
+# Mostra il pulsante solo se non è stato ancora inviato
+if not st.session_state["submitted"] and not st.session_state["email_sent"]:
     submit_clicked = st.button("Invia Risposte")
-
+    
     if submit_clicked:
         st.session_state["submitted"] = True
         st.rerun()
+else:
+    submit_clicked = False
 
-    if st.session_state["submitted"]:
-        st.success("Risposte inviate.")
-
-        df_r = pd.DataFrame(risposte)
-        chiuse = df_r[df_r["Tipo"] == "chiusa"]
-        n_tot = len(chiuse)
-        n_cor = int(chiuse["Esatta"].sum()) if n_tot else 0
-        perc = int(n_cor / n_tot * 100) if n_tot else 0
-        st.success(f"Punteggio finale: {n_cor} su {n_tot} ({perc}%)")
-
-        # Creazione file Excel con due tabelle
-        data_test = datetime.now().strftime("%d/%m/%Y")
-        info = pd.DataFrame([{
-            "Nome": utente,
-            "Data": data_test,
-            "Punteggio": f"{perc}%",
-            "Azienda": azienda_scelta
-        }])
-        buf = BytesIO()
-        with pd.ExcelWriter(buf, engine="openpyxl") as writer:
-            info.to_excel(writer, index=False, sheet_name="Risposte", startrow=0)
-            pd.DataFrame([], columns=[""]).to_excel(writer, index=False, sheet_name="Risposte", startrow=2)
-            df_r["Email"] = email_compilatore
-            df_r["Punteggio"] = f"{perc}%"
-            df_r.to_excel(writer, index=False, sheet_name="Risposte", startrow=3)
-        buf.seek(0)
-
-        # Email
-        msg = MIMEMultipart()
-        msg["From"] = "infusionauxiell@gmail.com"
-        msg["To"] = email_mentor
-        msg["Subject"] = f"Risultati Quiz - {utente}"
-        body = f"Risultati di {utente} ({email_compilatore}) in allegato.\nPunteggio: {perc}%"
-        msg.attach(MIMEText(body, "plain"))
-        attachment = MIMEApplication(buf.getvalue(), Name=f"risultati_{utente}.xlsx")
-        attachment["Content-Disposition"] = f'attachment; filename="risultati_{utente}.xlsx"'
-        msg.attach(attachment)
-
-        try:
-            with smtplib.SMTP("smtp.gmail.com", 587) as server:
-                server.starttls()
-                server.login("infusionauxiell@gmail.com", "ubrwqtcnbyjiqach")
-                server.send_message(msg)
-            st.success(f"Email inviata a {email_mentor}")
-        except Exception as e:
-            st.error(f"Errore durante l'invio email: {e}")
-        except Exception as e:
-            st.error(f"Errore durante l'invio email: {e}")
+# Gestisce l'invio delle risposte solo una volta
+if st.session_state["submitted"] and not st.session_state["email_sent"]:
+    st.success("Risposte inviate.")
+    
+    df_r = pd.DataFrame(risposte)
+    chiuse = df_r[df_r["Tipo"] == "chiusa"]
+    n_tot = len(chiuse)
+    n_cor = int(chiuse["Esatta"].sum()) if n_tot else 0
+    perc = int(n_cor / n_tot * 100) if n_tot else 0
+    st.success(f"Punteggio finale: {n_cor} su {n_tot} ({perc}%)")
+    
+    # Creazione file Excel con due tabelle
+    data_test = datetime.now().strftime("%d/%m/%Y")
+    info = pd.DataFrame([{
+        "Nome": utente,
+        "Data": data_test,
+        "Punteggio": f"{perc}%",
+        "Azienda": azienda_scelta
+    }])
+    buf = BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        info.to_excel(writer, index=False, sheet_name="Risposte", startrow=0)
+        pd.DataFrame([], columns=[""]).to_excel(writer, index=False, sheet_name="Risposte", startrow=2)
+        df_r["Email"] = email_compilatore
+        df_r["Punteggio"] = f"{perc}%"
+        df_r.to_excel(writer, index=False, sheet_name="Risposte", startrow=3)
+    buf.seek(0)
+    
+    # Email
+    msg = MIMEMultipart()
+    msg["From"] = "infusionauxiell@gmail.com"
+    msg["To"] = email_mentor
+    msg["Subject"] = f"Risultati Quiz - {utente}"
+    body = f"Risultati di {utente} ({email_compilatore}) in allegato.\nPunteggio: {perc}%"
+    msg.attach(MIMEText(body, "plain"))
+    attachment = MIMEApplication(buf.getvalue(), Name=f"risultati_{utente}.xlsx")
+    attachment["Content-Disposition"] = f'attachment; filename="risultati_{utente}.xlsx"'
+    msg.attach(attachment)
+    
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login("infusionauxiell@gmail.com", "ubrwqtcnbyjiqach")
+            server.send_message(msg)
+        st.session_state["email_sent"] = True
+        st.success(f"Email inviata a {email_mentor}")
+        
+        # Aggiungiamo un messaggio di chiusura e ringraziamento
+        st.balloons()  # Effetto celebrativo
+        st.markdown("""
+        ### Quiz completato!
+        Grazie per aver completato il quiz. I risultati sono stati inviati al tuo mentor.
+        Puoi chiudere questa finestra.
+        """)
+        
+        # Disabilitiamo l'intera interfaccia utente
+        st.markdown("""
+        <style>
+        .block-container {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        div[data-testid="stVerticalBlock"] > div:not(:nth-child(-n+3)) {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+    except Exception as e:
+        st.error(f"Errore durante l'invio email: {e}")
