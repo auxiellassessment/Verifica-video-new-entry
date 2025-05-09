@@ -126,7 +126,7 @@ if st.session_state["proseguito"]:
         else:
             opts = [str(row[c]) for c in option_cols if pd.notna(row[c])]
             sel = st.radio(
-                f"Argomento: {row['principio']}",
+                f"",
                 opts,
                 key=idx,
                 index=None,
