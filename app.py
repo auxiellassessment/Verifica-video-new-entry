@@ -173,8 +173,7 @@ if st.session_state["proseguito"]:
             "Nome": utente,
             "Data": data_test,
             "Punteggio": f"{perc}%",
-            "Email": email_utente,
-            "Azienda": azienda
+            "Email": email_utente
         }])
         
         buf = BytesIO()
