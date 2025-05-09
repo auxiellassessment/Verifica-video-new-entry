@@ -168,16 +168,6 @@ if st.session_state["proseguito"]:
         # Creazione file Excel con due tabelle
         data_test = datetime.now().strftime("%d/%m/%Y")
         
-        # Estrai dominio email per determinare l'azienda
-        domain = email_utente.split('@')[1]
-        if domain == "auxiell.com":
-            azienda = "auxiell"
-        elif domain == "euxilia.com":
-            azienda = "euxilia"
-        elif domain == "xva-services.com":
-            azienda = "xva"
-        else:
-            azienda = "altra"
         
         info = pd.DataFrame([{
             "Nome": utente,
