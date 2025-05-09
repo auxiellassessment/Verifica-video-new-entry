@@ -182,7 +182,6 @@ if st.session_state["proseguito"]:
             pd.DataFrame([], columns=[""]).to_excel(writer, index=False, sheet_name="Risposte", startrow=2)
             df_r["Email"] = email_utente
             df_r["Punteggio"] = f"{perc}%"
-            df_r["Azienda"] = azienda
             df_r.to_excel(writer, index=False, sheet_name="Risposte", startrow=3)
         buf.seek(0)
         
