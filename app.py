@@ -176,7 +176,7 @@ if st.session_state["proseguito"]:
 
     if submit_clicked:
         st.session_state["submitted"] = True
-        st.experimental_rerun()
+        st.rerun()
 
     if st.session_state["submitted"]:
         st.success("Risposte inviate.")
